@@ -1,0 +1,93 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  EKS_CLUSTER_NAME: otel-demo-dev
+  NAMESPACE: otel-demo
+  RELEASE_NAME: otel-demo
+
+jobs:
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-${{ github.run_id }}
+
+      - name: Verify AWS identity
+        run: |
+          aws sts get-caller-identity
+
+      - name: Verify EKS cluster
+        run: |
+          aws eks describe-cluster \
+            --name "$EKS_CLUSTER_NAME" \
+            --region "$AWS_REGION" \
+            --query 'cluster.status' \
+            --output text
+
+      - name: Install Helm
+        uses: azure/setup-helm@v5
+        with:
+          version: latest
+
+      - name: Add OpenTelemetry Helm repository
+        run: |
+          helm repo add open-telemetry \
+            https://open-telemetry.github.io/opentelemetry-helm-charts
+          helm repo update
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig \
+            --region "$AWS_REGION" \
+            --name "$EKS_CLUSTER_NAME"
+
+      - name: Verify Kubernetes access
+        run: |
+          kubectl get nodes
+
+      - name: Deploy OpenTelemetry Demo
+        run: |
+          helm upgrade --install "$RELEASE_NAME" \
+            open-telemetry/opentelemetry-demo \
+            --namespace "$NAMESPACE" \
+            --create-namespace \
+            --values helm/otel-demo-values.yaml \
+            --wait \
+            --timeout 15m \
+            --atomic
+
+      - name: Apply ALB Ingress
+        run: |
+          kubectl apply \
+            -f helm/otel-demo-ingress.yaml
+
+      - name: Verify deployment
+        run: |
+          kubectl rollout status \
+            deployment/frontend \
+            -n "$NAMESPACE" \
+            --timeout=10m
+
+          kubectl get pods -n "$NAMESPACE"
+
+          kubectl get ingress \
+            -n "$NAMESPACE"

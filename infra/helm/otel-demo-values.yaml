@@ -1,0 +1,13 @@
+# helm/otel-demo-values.yaml
+
+components:
+  frontend-proxy:
+    service:
+      type: ClusterIP
+    replicas: 3
+
+  frontend:
+    replicas: 3
+
+  checkout:
+    replicas: 3
