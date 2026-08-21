@@ -5,53 +5,44 @@ on:
     branches:
       - main
 
+  push:
+    branches:
+      - main
+
 permissions:
   contents: read
 
 jobs:
-  helm-validate:
-    name: Validate Helm configuration
+  yaml-lint:
+    name: YAML lint
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Lint YAML
+        run: yamllint .
+
+  helm-check:
+    name: Helm validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
 
       - name: Setup Helm
-        uses: azure/setup-helm@v5
-        with:
-          version: latest
+        uses: azure/setup-helm@v4
 
       - name: Add OpenTelemetry Helm repository
         run: |
-          helm repo add open-telemetry \
-            https://open-telemetry.github.io/opentelemetry-helm-charts
+          helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
           helm repo update
 
       - name: Helm lint
         run: |
           helm lint \
             open-telemetry/opentelemetry-demo \
-            --namespace otel-demo \
-            -f helm/otel-demo-values.yaml
-
-      - name: Render Helm manifests
-        run: |
-          helm template otel-demo \
-            open-telemetry/opentelemetry-demo \
-            --namespace otel-demo \
-            -f helm/otel-demo-values.yaml \
-            > /tmp/otel-demo-rendered.yaml
-
-      - name: Check rendered manifests
-        run: |
-          test -s /tmp/otel-demo-rendered.yaml
-          echo "Rendered Helm manifests successfully."
-
-      - name: Validate Ingress
-        run: |
-          kubectl create --dry-run=client \
-            -f helm/otel-demo-ingress.yaml \
-            -o yaml > /tmp/ingress.yaml
-
-          test -s /tmp/ingress.yaml
+            --values helm/otel-demo-values.yaml

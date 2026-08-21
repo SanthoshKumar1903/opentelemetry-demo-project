@@ -30,7 +30,7 @@ data "aws_iam_policy_document" "github_actions_assume_role" {
       variable = "token.actions.githubusercontent.com:sub"
 
       values = [
-        "repo:SanthoshKumar1903/opentelemetry-demo-project:*"
+        "repo:SanthoshKumar1903@160413455/opentelemetry-demo-project@1331003749:*"
       ]
     }
   }
