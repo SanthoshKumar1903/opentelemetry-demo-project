@@ -70,7 +70,7 @@ jobs:
             open-telemetry/opentelemetry-demo \
             --namespace "$NAMESPACE" \
             --create-namespace \
-            --values helm/otel-demo-values.yaml \
+            --values infra/helm/otel-demo-values.yaml \
             --wait \
             --timeout 15m \
             --atomic
@@ -78,7 +78,7 @@ jobs:
       - name: Apply ALB Ingress
         run: |
           kubectl apply \
-            -f helm/otel-demo-ingress.yaml
+            -f infra/helm/otel-demo-ingress.yaml
 
       - name: Verify deployment
         run: |
